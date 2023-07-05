@@ -1,0 +1,118 @@
+import './App.css';
+import React from 'react';
+import SoundBuffer from './SoundBuffer';
+import io from "socket.io-client";
+
+const CHUNK_SIZE = 1000; // ms
+const BUFFER_SIZE = 4; // chunks in queue before playing
+
+
+export default class App extends React.Component {
+  constructor() {
+    super();
+    this.chunk_size = CHUNK_SIZE;
+
+    this.state = {showRecorder: false, socket: null, socketConnected: false};
+    this.startRecording = this.startRecording.bind(this);
+    this.stopRecording = this.stopRecording.bind(this);
+
+    this.context = new AudioContext();
+
+    this.buffer = new SoundBuffer(this.context, this.context.sampleRate, BUFFER_SIZE);
+    
+
+    this.setupRecorder();    
+    
+  }
+
+  componentDidMount() {
+    let socket = io('http://localhost:8000');
+    this.setState(() => {return {socket: socket}});
+
+    socket.on('processed', (data) => {
+      this.buffer.addChunk(data);
+    })
+  }
+
+  componentDidUpdate() {
+    if (!this.state.socket) return;
+ 
+    this.state.socket.on('connect', () => {
+      this.setState(() => {return {socketConnected: this.state.socket.connected}});
+    });
+    this.state.socket.on('disconnect', () => {
+      this.setState(() => {return {socketConnected: this.state.socket.connected}});
+    });
+    
+  }
+
+  async setupRecorder() {
+    this.stream_ = await this.getUserMedia();
+    this.mediaRecorder = new MediaRecorder(this.stream_);
+
+    this.mediaRecorder.ondataavailable = async (e) => {
+      this.sendData(e.data);
+    };
+  }
+
+  async sendData(chunk) {
+    if (!this.state.socketConnected) return;
+
+    this.state.socket.emit('chunk', chunk);
+  }
+
+  
+  async getUserMedia() {
+    return new Promise((resolve, reject) => {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            console.log("getUserMedia supported.");
+            navigator.mediaDevices
+                .getUserMedia({audio: true})
+                .then((stream) => { resolve(stream); })
+                .catch((err) => { console.error(`The following getUserMedia error occurred: ${err}`); });
+        } else {
+            console.log("getUserMedia not supported on your browser!");
+        }
+    });
+  }
+
+  startRecording(e) {
+    this.setState((_) => {
+      return {showRecorder: true};
+    });
+    this.mediaRecorder.start(this.chunk_size);
+  }
+
+  stopRecording(e) {
+    this.setState((_) => {
+      return {showRecorder: false};
+    });
+    this.mediaRecorder.stop();
+  }
+
+  render() {
+    return (
+      <div className="App">
+        <div>
+          <b>Connection status:</b> {this.state.socketConnected ? 'Connected' : 'Disconnected'}
+        </div>
+        {this.state.showRecorder && <div className='recorder'>
+          
+          <div>
+
+            <div className="circle" style={{animationDelay: '0s'}}></div>
+            <div className="circle" style={{animationDelay: '1s'}}></div>
+            <div className="circle" style={{animationDelay: '2s'}}></div>
+            <div className="circle" style={{animationDelay: '3s'}}></div>
+
+            <button className="record" onClick={this.stopRecording}>Stop Recording</button>
+
+          </div>
+
+        </div>}
+        {!this.state.showRecorder &&
+        <button className="record" onClick={this.startRecording}>Record</button>}
+      </div>
+    );
+  }
+}
