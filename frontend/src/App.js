@@ -25,8 +25,7 @@ export default class App extends React.Component {
 
     // this.
 
-    // this.buffer = new SoundBuffer(this.context, this.context.sampleRate, BUFFER_SIZE);
-    this.setupRecorder();    
+    // this.buffer = new SoundBuffer(this.context, this.context.sampleRate, BUFFER_SIZE);   
     
   }
 
@@ -52,7 +51,7 @@ export default class App extends React.Component {
   }
 
   chunkProcessed(data) {
-    console.log(data);
+
     this.setState((_) => {
       return {transcription: data};
     });
@@ -120,8 +119,11 @@ export default class App extends React.Component {
     });
   }
 
-  startRecording(e) {
+  async startRecording(e) {
     if (!this.state.socketConnected) return;
+
+    await this.setupRecorder();
+
     let settings = this.stream_.getAudioTracks()[0].getSettings()
     console.log(settings)
     this.state.socket.emit('start', { 'sampleRate' : settings['sampleRate'],
@@ -129,7 +131,7 @@ export default class App extends React.Component {
     });
 
     this.setState((_) => {
-      return {showRecorder: true};
+      return {showRecorder: true, transcription: ""};
     });
 
     this.recorder.startRecording()
@@ -140,6 +142,10 @@ export default class App extends React.Component {
       return {showRecorder: false};
     });
     this.recorder.stopRecording();
+
+    this.recorder.destroy();
+
+    this.audioChunks = new ArrayBuffer();
 
     if (!this.state.socketConnected) return;
 
@@ -163,13 +169,13 @@ export default class App extends React.Component {
 
             <button className="record" onClick={this.stopRecording}>Stop Recording</button>
 
-            <div>{this.state.transcription}</div>
+            
 
           </div>
-
         </div>}
         {!this.state.showRecorder &&
         <button className="record" onClick={this.startRecording}>Record</button>}
+        <div>{this.state.transcription}</div>
       </div>
     );
   }
