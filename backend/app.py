@@ -18,7 +18,7 @@ CHUNK_SIZE = 16
 
 class Processing :
     def __init__(self):
-        self.stt_model = whisper.load_model("base.en")
+        self.stt_model = whisper.load_model("tiny.en")
         # List available 🐸TTS models
         self.tts_model = TTS.list_models()[11]  #8 is fine
         print(TTS.list_models())

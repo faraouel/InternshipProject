@@ -98,7 +98,7 @@ export default class App extends React.Component {
     console.log(this.audioChunks)
     var newSource = context.createBufferSource();
     var newBuffer = context.createBuffer( 1, this.audioChunks.byteLength, 22000 );
-    newBuffer.getChannelData(0).set(this.audioChunks);
+    newBuffer = await context.decodeAudioData(this.audioChunks);
     newSource.buffer = newBuffer;
 
     newSource.connect( context.destination );
